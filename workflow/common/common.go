@@ -47,6 +47,10 @@ const (
 	// signal the executors of daemoned containers that it should terminate.
 	AnnotationKeyExecutionControl = workflow.WorkflowFullName + "/execution"
 
+	// FinalizerKeyArtifactGc is the finalizer that is used to prevent deletion of non-archived workflows
+	// until all GC related tasks have been completed
+	FinalizerKeyArtifactGc = workflow.WorkflowFullName + "/artifact-gc"
+
 	// LabelKeyControllerInstanceID is the label the controller will carry forward to workflows/pod labels
 	// for the purposes of workflow segregation
 	LabelKeyControllerInstanceID = workflow.WorkflowFullName + "/controller-instanceid"
@@ -65,6 +69,10 @@ const (
 	LabelKeyClusterWorkflowTemplate = workflow.WorkflowFullName + "/cluster-workflow-template"
 	// LabelKeyOnExit is a label applied to Pods that are run from onExit nodes, so that they are not shut down when stopping a Workflow
 	LabelKeyOnExit = workflow.WorkflowFullName + "/on-exit"
+
+	// LabelKeyArtifactGcPhase is a label applied to the workflow and updated by the garbage collector so that we
+	// know whether or not there was a job already created for artifact GC, and whether or not it completed.
+	LabelKeyArtifactGcPhase = workflow.WorkflowFullName + "/artifact-gc"
 
 	// ExecutorArtifactBaseDir is the base directory in the init container in which artifacts will be copied to.
 	// Each artifact will be named according to its input name (e.g: /argo/inputs/artifacts/CODE)

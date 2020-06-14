@@ -220,3 +220,7 @@ func (driver *ArtifactDriver) Save(path string, outputArtifact *wfv1.Artifact) e
 
 	return hdfscli.CopyToRemote(path, driver.Path)
 }
+
+func (driver *ArtifactDriver) Delete (*wfv1.Artifact) error {
+	return fmt.Errorf("Not implemented yet")
+}

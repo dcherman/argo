@@ -73,3 +73,7 @@ func (a *ArtifactoryArtifactDriver) Save(path string, artifact *wfv1.Artifact) e
 	}
 	return nil
 }
+
+func (a *ArtifactoryArtifactDriver) Delete(*wfv1.Artifact) error {
+	return errors.InternalErrorf("Not implemented yet")
+}

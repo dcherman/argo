@@ -28,3 +28,7 @@ func (a *RawArtifactDriver) Load(artifact *wfv1.Artifact, path string) error {
 func (g *RawArtifactDriver) Save(string, *wfv1.Artifact) error {
 	return errors.Errorf(errors.CodeBadRequest, "Raw output artifacts unsupported")
 }
+
+func (g *RawArtifactDriver) Delete(*wfv1.Artifact) error {
+	return errors.Errorf(errors.CodeBadRequest, "Raw artifact delete unsupported")
+}

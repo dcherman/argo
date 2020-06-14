@@ -67,6 +67,16 @@ const (
 	PodGCOnWorkflowSuccess    PodGCStrategy = "OnWorkflowSuccess"
 )
 
+// ArtifactGCStrategy is the strategy to use when deleting artifacts for GC
+type ArtifactGCStrategy string
+
+// ArtifactGCStrategy
+const (
+	ArtifactGCNever              ArtifactGCStrategy = "Never"
+	ArtifactGCOnWorkflowArchival ArtifactGCStrategy = "OnWorkflowArchival"
+	ArtifactGCOnWorkflowDeletion ArtifactGCStrategy = "OnWorkflowDeletion"
+)
+
 // Workflow is the definition of a workflow resource
 // +genclient
 // +genclient:noStatus
@@ -641,6 +651,19 @@ type Artifact struct {
 
 	// Make Artifacts optional, if Artifacts doesn't generate or exist
 	Optional bool `json:"optional,omitempty" protobuf:"varint,8,opt,name=optional"`
+
+	// ArtifactGC describes how to delete artifacts as workflows are deleted or archived
+	ArtifactGC *ArtifactGC `json:"artifactGC,omitempty" protobuf:"bytes,9,opt,name=artifactGC"`
+
+	// DeletionTimestamp represents the time when the controller deleted the artifact, or confirmed that
+	// it had been already deleted
+	DeletionTimestamp *metav1.Time `json:"deletionTimestamp,omitempty" protobuf:"bytes,10,opt,name=deletionTimestamp"`
+}
+
+// PodGC describes how to delete completed pods as they complete
+type ArtifactGC struct {
+	// Strategy is the strategy to use. One of "Never", "OnWorkflowArchival", "OnWorkflowDeletion"
+	Strategy ArtifactGCStrategy `json:"strategy,omitempty" protobuf:"bytes,1,opt,name=strategy,casttype=ArtifactGCStrategy"`
 }
 
 // PodGC describes how to delete completed pods as they complete

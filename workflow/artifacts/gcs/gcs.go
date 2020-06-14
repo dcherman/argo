@@ -79,6 +79,10 @@ func (g *ArtifactDriver) Load(inputArtifact *wfv1.Artifact, path string) error {
 	return err
 }
 
+func (g *ArtifactDriver) Delete(*wfv1.Artifact) error {
+	return fmt.Errorf("Not implemented yet")
+}
+
 // download all the objects of a key from the bucket
 func downloadObjects(client *storage.Client, bucket, key, path string) error {
 	objNames, err := listByPrefix(client, bucket, key, "")

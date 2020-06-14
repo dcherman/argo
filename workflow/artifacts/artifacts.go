@@ -23,6 +23,9 @@ type ArtifactDriver interface {
 
 	// Save uploads the path to artifact destination
 	Save(path string, outputArtifact *wfv1.Artifact) error
+
+	// Delete removes/deleted the artifact located at the specified path
+	Delete(outputArtifact *wfv1.Artifact) error
 }
 
 var ErrUnsupportedDriver = fmt.Errorf("unsupported artifact driver")

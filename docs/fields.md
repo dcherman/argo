@@ -1824,6 +1824,7 @@ Artifact indicates an artifact to place at a specified path
 |:----------:|:----------:|---------------|
 |`archive`|[`ArchiveStrategy`](#archivestrategy)|Archive controls how the artifact will be saved to the artifact repository.|
 |`archiveLogs`|`boolean`|ArchiveLogs indicates if the container logs should be archived|
+|`artifactGC`|[`ArtifactGC`](#artifactgc)|ArtifactGC described how to delete artifacts as workflows are deleted or archived|
 |`artifactory`|[`ArtifactoryArtifact`](#artifactoryartifact)|Artifactory contains artifactory artifact location details|
 |`from`|`string`|From allows an artifact to reference an artifact from a previous step|
 |`gcs`|[`GCSArtifact`](#gcsartifact)|GCS contains GCS artifact location details|
@@ -2853,6 +2854,15 @@ ArchiveStrategy describes how to archive files/directory when saving artifacts
 |:----------:|:----------:|---------------|
 |`none`|[`NoneStrategy`](#nonestrategy)|_No description available_|
 |`tar`|[`TarStrategy`](#tarstrategy)|_No description available_|
+
+## ArtifactGC
+
+PodGC describes how to delete completed pods as they complete
+
+### Fields
+| Field Name | Field Type | Description   |
+|:----------:|:----------:|---------------|
+|`strategy`|`string`|Strategy is the strategy to use. One of "Never", "OnWorkflowArchival", "OnWorkflowDeletion"|
 
 ## ArtifactoryArtifact
 

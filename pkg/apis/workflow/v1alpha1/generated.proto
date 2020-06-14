@@ -61,6 +61,15 @@ message Artifact {
 
   // Make Artifacts optional, if Artifacts doesn't generate or exist
   optional bool optional = 8;
+
+  // ArtifactGC described how to delete artifacts as workflows are deleted or archived
+  optional ArtifactGC artifactGC = 9;
+}
+
+// PodGC describes how to delete completed pods as they complete
+message ArtifactGC {
+  // Strategy is the strategy to use. One of "Never", "OnWorkflowArchival", "OnWorkflowDeletion"
+  optional string strategy = 1;
 }
 
 // ArtifactLocation describes a location for a single or multiple artifacts.

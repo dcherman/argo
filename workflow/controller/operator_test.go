@@ -3527,3 +3527,108 @@ func TestBackoffExceedsMaxDuration(t *testing.T) {
 	assert.Equal(t, "Backoff would exceed max duration limit", woc.wf.Status.Nodes["echo-r6v49"].Message)
 	assert.Equal(t, "Backoff would exceed max duration limit", woc.wf.Status.Message)
 }
+
+// This tests that after a workflow is initialized, the artifact gc finalizer was added
+func TestArtifactGcFinalizerAdded(t *testing.T) {
+		wf := unmarshalWF(helloWorldWf)
+		woc := newWoc(*wf)
+
+		assert.False(t,  woc.hasArtifactGCFinalizer())
+		woc.operate()
+		assert.True(t,  woc.hasArtifactGCFinalizer())
+}
+
+func TestArtifactGcFinalizerRemovedOnNoGcNeeded(t *testing.T) {
+		wf := unmarshalWF(helloWorldWf)
+		woc := newWoc(*wf)
+
+		woc.operate()
+
+		assert.True(t,  woc.hasArtifactGCFinalizer())
+		woc.wf.DeletionTimestamp = &metav1.Time{Time: time.Now()}
+		woc.operate()
+		assert.False(t,  woc.hasArtifactGCFinalizer())
+}
+
+func artifactRequiresGc(strategy wfv1.ArtifactGCStrategy) string {
+		return fmt.Sprintf(`
+apiVersion: argoproj.io/v1alpha1
+kind: Workflow
+metadata:
+  name: echo-r6v49
+  finalizers:
+    - %s
+spec:
+  arguments: {}
+  entrypoint: echo
+  templates:
+  - arguments: {}
+    container:
+      args:
+      - exit 1
+      command:
+      - sh
+      - -c
+      image: alpine:3.7
+      name: ""
+      resources: {}
+    inputs: {}
+    metadata: {}
+    name: echo
+    outputs: {}
+status:
+  nodes:
+    echo-r6v49-3721138751:
+      displayName: echo-r6v49
+      finishedAt: "2020-05-07T18:10:35Z"
+      hostNodeName: minikube
+      id: echo-r6v49-3721138751
+      message: failed with exit code 1
+      name: echo-r6v49
+      outputs:
+        artifacts:
+        - archiveLogs: true
+          name: main-logs
+          artifactGC:
+            strategy: %s
+          s3:
+            accessKeySecret:
+              key: accesskey
+              name: my-minio-cred
+            bucket: my-bucket
+            endpoint: minio:9000
+            insecure: true
+            key: echo-r6v49/echo-r6v49-3721138751/main.log
+            secretKeySecret:
+              key: secretkey
+              name: my-minio-cred
+        exitCode: "1"
+      phase: Failed
+      resourcesDuration:
+        cpu: 1
+        memory: 0
+      startedAt: "2020-05-07T18:10:34Z"
+      templateName: echo
+      templateScope: local/echo-r6v49
+      type: Pod
+  phase: Running
+  resourcesDuration:
+    cpu: 1
+    memory: 0
+  startedAt: "2020-05-07T18:10:34Z"
+`, common.FinalizerKeyArtifactGc, strategy)
+}
+
+func TestArtifactGcFinalizerRemainsIfNeeded(t *testing.T) {
+		for _, strategy := range []wfv1.ArtifactGCStrategy{wfv1.ArtifactGCOnWorkflowDeletion, wfv1.ArtifactGCOnWorkflowArchival} {
+				t.Run(string(strategy), func(t *testing.T) {
+						wf := unmarshalWF(artifactRequiresGc(strategy))
+						woc := newWoc(*wf)
+
+						assert.True(t,  woc.hasArtifactGCFinalizer())
+						woc.wf.DeletionTimestamp = &metav1.Time{Time: time.Now()}
+						woc.operate()
+						assert.True(t,  woc.hasArtifactGCFinalizer())
+				})
+		}
+}

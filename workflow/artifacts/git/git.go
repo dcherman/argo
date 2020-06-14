@@ -53,6 +53,11 @@ func (g *GitArtifactDriver) Save(string, *wfv1.Artifact) error {
 	return errors.Errorf(errors.CodeBadRequest, "Git output artifacts unsupported")
 }
 
+// Delete is unsupported for git output artifacts
+func (g *GitArtifactDriver) Delete(*wfv1.Artifact) error {
+	return errors.Errorf(errors.CodeBadRequest, "Git artifact deletion unsupported")
+}
+
 func writePrivateKey(key string, insecureIgnoreHostKey bool) error {
 	usr, err := user.Current()
 	if err != nil {

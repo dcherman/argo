@@ -4,7 +4,8 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"os"
+		batchv1 "k8s.io/api/batch/v1"
+		"os"
 	"strings"
 	"time"
 
@@ -70,10 +71,13 @@ type WorkflowController struct {
 	wftmplInformer        wfextvv1alpha1.WorkflowTemplateInformer
 	cwftmplInformer       wfextvv1alpha1.ClusterWorkflowTemplateInformer
 	podInformer           cache.SharedIndexInformer
+	jobInformer cache.SharedIndexInformer
 	wfQueue               workqueue.RateLimitingInterface
 	podQueue              workqueue.RateLimitingInterface
+	jobQueue workqueue.RateLimitingInterface
 	completedPods         chan string
 	gcPods                chan string // pods to be deleted depend on GC strategy
+	gcArtifacts						chan ArtifactGCInfo
 	throttler             Throttler
 	session               sqlbuilder.Database
 	offloadNodeStatusRepo sqldb.OffloadNodeStatusRepo
@@ -86,8 +90,14 @@ const (
 	workflowResyncPeriod                = 20 * time.Minute
 	workflowTemplateResyncPeriod        = 20 * time.Minute
 	podResyncPeriod                     = 30 * time.Minute
+	jobResyncPeriod = 30 * time.Minute
 	clusterWorkflowTemplateResyncPeriod = 20 * time.Minute
 )
+
+type ArtifactGCInfo struct {
+		WorkflowKey string
+		ArtifactLocations []wfv1.ArtifactLocation
+}
 
 // NewWorkflowController instantiates a new WorkflowController
 func NewWorkflowController(
@@ -115,6 +125,7 @@ func NewWorkflowController(
 		configController:           config.NewController(namespace, configMap, kubeclientset),
 		completedPods:              make(chan string, 512),
 		gcPods:                     make(chan string, 512),
+		gcArtifacts:								make(chan ArtifactGCInfo, 512),
 	}
 	wfc.throttler = NewThrottler(0, wfc.wfQueue)
 	wfc.UpdateConfig()
@@ -141,6 +152,7 @@ func (wfc *WorkflowController) runCronController(ctx context.Context) {
 func (wfc *WorkflowController) Run(ctx context.Context, wfWorkers, podWorkers int) {
 	defer wfc.wfQueue.ShutDown()
 	defer wfc.podQueue.ShutDown()
+	//defer wfc.jobQueue.ShutDown()
 
 	log.WithField("version", argo.GetVersion().Version).Info("Starting Workflow Controller")
 	log.Infof("Workers: workflow: %d, pod: %d", wfWorkers, podWorkers)
@@ -240,6 +252,46 @@ func (wfc *WorkflowController) podLabeler(stopCh <-chan struct{}) {
 		}
 	}
 }
+
+/*
+func (wfc *WorkflowController) processNextJobItem() bool {
+		key, quit := wfc.jobQueue.Get()
+		if quit {
+				return false
+		}
+		defer wfc.jobQueue.Done(key)
+
+		obj, exists, err := wfc.jobInformer.GetIndexer().GetByKey(key.(string))
+		if err != nil {
+				log.Errorf("Failed to get job '%s' from informer index: %+v", key, err)
+				return true
+		}
+		if !exists {
+				// we can get here if job was queued into the job workqueue,
+				// but it was deleted by the time  we dequeued it.
+				return true
+		}
+		job, ok := obj.(*batchv1.Job)
+		if !ok {
+				log.Warnf("Key '%s' in index is not a job", key)
+				return true
+		}
+		if job.Labels == nil {
+				log.Warnf("Pod '%s' did not have labels", key)
+				return true
+		}
+		workflowName, ok := job.Labels[common.LabelKeyWorkflow]
+		if !ok {
+				// Ignore pods unrelated to workflow (this shouldn't happen unless the watch is setup incorrectly)
+				log.Warnf("watch returned job unrelated to any workflow: %s", job.ObjectMeta.Name)
+				return true
+		}
+		// TODO: currently we reawaken the workflow on *any* pod updates.
+		// But this could be be much improved to become smarter by only
+		// requeue the workflow when there are changes that we care about.
+		//wfc.wfQueue.Add(pod.ObjectMeta.Namespace + "/" + workflowName)
+		return true
+}*/
 
 // podGarbageCollector will delete all pods on the controllers gcPods channel as completed
 func (wfc *WorkflowController) podGarbageCollector(stopCh <-chan struct{}) {
@@ -384,6 +436,7 @@ func (wfc *WorkflowController) processNextItem() bool {
 		// or was deleted, but the work queue still had an entry for it.
 		return true
 	}
+
 	// The workflow informer receives unstructured objects to deal with the possibility of invalid
 	// workflow manifests that are unable to unmarshal to workflow objects
 	un, ok := obj.(*unstructured.Unstructured)
@@ -408,6 +461,7 @@ func (wfc *WorkflowController) processNextItem() bool {
 	}
 
 	err = wfc.setWorkflowDefaults(wf)
+
 	if err != nil {
 		log.Warnf("Failed to apply default workflow values to '%s': %v", wf.Name, err)
 		woc := newWorkflowOperationCtx(wf, wfc)
@@ -435,29 +489,42 @@ func (wfc *WorkflowController) processNextItem() bool {
 		return true
 	}
 
+	// TODO: When archiving, we need to mark the workflow with a label or something prior to actually deleting it
+	// So we can inform the garbage collector that the intent is to archive the workflow, not delete it.  Also
+	// needed to support the "OnWorkflowArchival" strategy.
+
+	// If the Workflow was deleted, then apply our finalizer.
+/*		if _, exists := woc.wf.Labels[common.LabelKeyArtifactGcPhase]; !exists && wf.DeletionTimestamp != nil {
+				wf.ObjectMeta.Labels[common.LabelKeyArtifactGcPhase] = "Pending"
+				woc.persistUpdates()
+		}*/
+
 	startTime := time.Now()
 	woc.operate()
 	wfc.metrics.OperationCompleted(time.Since(startTime).Seconds())
+
 	if woc.wf.Status.Completed() {
-		wfc.throttler.Remove(key)
-		// Send all completed pods to gcPods channel to delete it later depend on the PodGCStrategy.
-		var doPodGC bool
-		if woc.wfSpec.PodGC != nil {
-			switch woc.wfSpec.PodGC.Strategy {
-			case wfv1.PodGCOnWorkflowCompletion:
-				doPodGC = true
-			case wfv1.PodGCOnWorkflowSuccess:
-				if woc.wf.Status.Successful() {
-					doPodGC = true
-				}
+			woc.persistUpdates()
+
+			wfc.throttler.Remove(key)
+			// Send all completed pods to gcPods channel to delete it later depend on the PodGCStrategy.
+			var doPodGC bool
+			if woc.wfSpec.PodGC != nil {
+					switch woc.wfSpec.PodGC.Strategy {
+					case wfv1.PodGCOnWorkflowCompletion:
+							doPodGC = true
+					case wfv1.PodGCOnWorkflowSuccess:
+							if woc.wf.Status.Successful() {
+									doPodGC = true
+							}
+					}
 			}
-		}
-		if doPodGC {
-			for podName := range woc.completedPods {
-				pod := fmt.Sprintf("%s/%s", woc.wf.ObjectMeta.Namespace, podName)
-				woc.controller.gcPods <- pod
+			if doPodGC {
+					for podName := range woc.completedPods {
+							pod := fmt.Sprintf("%s/%s", woc.wf.ObjectMeta.Namespace, podName)
+							woc.controller.gcPods <- pod
+					}
 			}
-		}
 	}
 
 	// TODO: operate should return error if it was unable to operate properly
@@ -605,6 +672,31 @@ func (wfc *WorkflowController) addWorkflowInformerHandlers() {
 	})
 }
 
+func (wfc *WorkflowController) newWorkflowJobWatch() *cache.ListWatch {
+		c := wfc.kubeclientset.BatchV1().RESTClient()
+		resource := "jobs"
+		namespace := wfc.GetManagedNamespace()
+		labelSelector := labels.NewSelector()
+
+		listFunc := func(options metav1.ListOptions) (runtime.Object, error) {
+				options.LabelSelector = labelSelector.String()
+				req := c.Get().
+						Namespace(namespace).
+						Resource(resource).
+						VersionedParams(&options, metav1.ParameterCodec)
+				return req.Do().Get()
+		}
+
+		watchFunc := func(options metav1.ListOptions) (watch.Interface, error) {
+				options.Watch = true
+				req := c.Get().Name(namespace).Resource(resource).VersionedParams(&options, metav1.ParameterCodec)
+
+				return req.Watch()
+		}
+
+		return &cache.ListWatch{ListFunc: listFunc, WatchFunc: watchFunc}
+}
+
 func (wfc *WorkflowController) newWorkflowPodWatch() *cache.ListWatch {
 	c := wfc.kubeclientset.CoreV1().RESTClient()
 	resource := "pods"
@@ -633,6 +725,13 @@ func (wfc *WorkflowController) newWorkflowPodWatch() *cache.ListWatch {
 		return req.Watch()
 	}
 	return &cache.ListWatch{ListFunc: listFunc, WatchFunc: watchFunc}
+}
+
+func (wfc *WorkflowController) newJobInformer() cache.SharedIndexInformer {
+		source := wfc.newWorkflowJobWatch()
+		informer := cache.NewSharedIndexInformer(source, &batchv1.Job{}, jobResyncPeriod, cache.Indexers{})
+
+		return informer
 }
 
 func (wfc *WorkflowController) newPodInformer() cache.SharedIndexInformer {
@@ -674,6 +773,8 @@ func (wfc *WorkflowController) newPodInformer() cache.SharedIndexInformer {
 // workflowController. Values in the workflow will be given the upper hand over the defaults.
 // The defaults for the workflow controller are set in the workflow-controller config map
 func (wfc *WorkflowController) setWorkflowDefaults(wf *wfv1.Workflow) error {
+
+
 	if wfc.Config.WorkflowDefaults != nil {
 		defaultsSpec, err := json.Marshal(*wfc.Config.WorkflowDefaults)
 		if err != nil {

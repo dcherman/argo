@@ -1,6 +1,7 @@
 package oss
 
 import (
+	"fmt"
 	"time"
 
 	log "github.com/sirupsen/logrus"
@@ -74,4 +75,8 @@ func (ossDriver *OSSArtifactDriver) Save(path string, outputArtifact *wfv1.Artif
 			return true, nil
 		})
 	return err
+}
+
+func (ossDriver *OSSArtifactDriver) Delete(*wfv1.Artifact) error {
+	return fmt.Errorf("Not implemented yet")
 }

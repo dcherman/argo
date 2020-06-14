@@ -110,3 +110,25 @@ func (s3Driver *S3ArtifactDriver) Save(path string, outputArtifact *wfv1.Artifac
 		})
 	return err
 }
+
+func (s3Driver *S3ArtifactDriver) Delete(outputArtifact *wfv1.Artifact) error {
+	err := wait.ExponentialBackoff(wait.Backoff{Duration: time.Second * 2, Factor: 2.0, Steps: 5, Jitter: 0.1},
+		func() (bool, error) {
+			log.Infof("S3 Delete bucket: %s, key: %s", outputArtifact.S3.Bucket, outputArtifact.S3.Key)
+			/*
+			s3cli, err := s3Driver.newS3Client()
+			if err != nil {
+				log.Warnf("Failed to create new S3 client: %v", err)
+				return false, nil
+			}
+
+			if err = s3cli.Delete(outputArtifact.S3.Bucket, outputArtifact.S3.Key); err != nil {
+				log.Warnf("Failed to delete S3 bucket %s, key %s: %v", outputArtifact.S3.Bucket, outputArtifact.S3.Key, err)
+				return false, nil
+			}*/
+
+			return true, nil
+		})
+
+	return err
+}

@@ -16,6 +16,7 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 		"github.com/argoproj/argo/pkg/apis/workflow/v1alpha1.ArchiveStrategy":             schema_pkg_apis_workflow_v1alpha1_ArchiveStrategy(ref),
 		"github.com/argoproj/argo/pkg/apis/workflow/v1alpha1.Arguments":                   schema_pkg_apis_workflow_v1alpha1_Arguments(ref),
 		"github.com/argoproj/argo/pkg/apis/workflow/v1alpha1.Artifact":                    schema_pkg_apis_workflow_v1alpha1_Artifact(ref),
+		"github.com/argoproj/argo/pkg/apis/workflow/v1alpha1.ArtifactGC":                  schema_pkg_apis_workflow_v1alpha1_ArtifactGC(ref),
 		"github.com/argoproj/argo/pkg/apis/workflow/v1alpha1.ArtifactLocation":            schema_pkg_apis_workflow_v1alpha1_ArtifactLocation(ref),
 		"github.com/argoproj/argo/pkg/apis/workflow/v1alpha1.ArtifactRepositoryRef":       schema_pkg_apis_workflow_v1alpha1_ArtifactRepositoryRef(ref),
 		"github.com/argoproj/argo/pkg/apis/workflow/v1alpha1.ArtifactoryArtifact":         schema_pkg_apis_workflow_v1alpha1_ArtifactoryArtifact(ref),
@@ -274,12 +275,38 @@ func schema_pkg_apis_workflow_v1alpha1_Artifact(ref common.ReferenceCallback) co
 							Format:      "",
 						},
 					},
+					"artifactGC": {
+						SchemaProps: spec.SchemaProps{
+							Description: "ArtifactGC described how to delete artifacts as workflows are deleted or archived",
+							Ref:         ref("github.com/argoproj/argo/pkg/apis/workflow/v1alpha1.ArtifactGC"),
+						},
+					},
 				},
 				Required: []string{"name"},
 			},
 		},
 		Dependencies: []string{
-			"github.com/argoproj/argo/pkg/apis/workflow/v1alpha1.ArchiveStrategy", "github.com/argoproj/argo/pkg/apis/workflow/v1alpha1.ArtifactoryArtifact", "github.com/argoproj/argo/pkg/apis/workflow/v1alpha1.GCSArtifact", "github.com/argoproj/argo/pkg/apis/workflow/v1alpha1.GitArtifact", "github.com/argoproj/argo/pkg/apis/workflow/v1alpha1.HDFSArtifact", "github.com/argoproj/argo/pkg/apis/workflow/v1alpha1.HTTPArtifact", "github.com/argoproj/argo/pkg/apis/workflow/v1alpha1.OSSArtifact", "github.com/argoproj/argo/pkg/apis/workflow/v1alpha1.RawArtifact", "github.com/argoproj/argo/pkg/apis/workflow/v1alpha1.S3Artifact"},
+			"github.com/argoproj/argo/pkg/apis/workflow/v1alpha1.ArchiveStrategy", "github.com/argoproj/argo/pkg/apis/workflow/v1alpha1.ArtifactGC", "github.com/argoproj/argo/pkg/apis/workflow/v1alpha1.ArtifactoryArtifact", "github.com/argoproj/argo/pkg/apis/workflow/v1alpha1.GCSArtifact", "github.com/argoproj/argo/pkg/apis/workflow/v1alpha1.GitArtifact", "github.com/argoproj/argo/pkg/apis/workflow/v1alpha1.HDFSArtifact", "github.com/argoproj/argo/pkg/apis/workflow/v1alpha1.HTTPArtifact", "github.com/argoproj/argo/pkg/apis/workflow/v1alpha1.OSSArtifact", "github.com/argoproj/argo/pkg/apis/workflow/v1alpha1.RawArtifact", "github.com/argoproj/argo/pkg/apis/workflow/v1alpha1.S3Artifact"},
+	}
+}
+
+func schema_pkg_apis_workflow_v1alpha1_ArtifactGC(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "PodGC describes how to delete completed pods as they complete",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"strategy": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Strategy is the strategy to use. One of \"Never\", \"OnWorkflowArchival\", \"OnWorkflowDeletion\"",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+				},
+			},
+		},
 	}
 }
 

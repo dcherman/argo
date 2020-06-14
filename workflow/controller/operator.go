@@ -188,6 +188,8 @@ func (woc *wfOperationCtx) operate() {
 	// Perform one-time workflow validation
 	if woc.wf.Status.Phase == "" {
 		woc.markWorkflowRunning()
+		woc.addArtifactGCFinalizer()
+
 		err := woc.createPDBResource()
 		if err != nil {
 			msg := fmt.Sprintf("Unable to create PDB resource for workflow, %s error: %s", woc.wf.Name, err)
@@ -235,6 +237,15 @@ func (woc *wfOperationCtx) operate() {
 			return
 		}
 	}
+
+		if woc.wf.DeletionTimestamp != nil {
+				// Check if the workflow still has the gc finalizer.  If it does and no artifacts are identified
+				// as needing garbage collection at the present time, then just remove the finalizer
+				if woc.hasArtifactGCFinalizer() && !woc.needsArtifactGC() {
+						woc.deleteArtifactGCFinalizer()
+						woc.persistUpdates()
+				}
+		}
 
 	if woc.wf.Spec.Suspend != nil && *woc.wf.Spec.Suspend {
 		woc.log.Infof("workflow suspended")
@@ -2710,4 +2721,65 @@ func (woc *wfOperationCtx) loadExecutionSpec() (wfv1.TemplateReferenceHolder, wf
 	}
 
 	return tmplRef, executionParameters, nil
+}
+
+
+func (woc *wfOperationCtx) hasArtifactGCFinalizer() bool {
+		for _, f := range woc.wf.Finalizers {
+				if f == common.FinalizerKeyArtifactGc {
+						return true
+				}
+		}
+
+		return false
+}
+
+func (woc *wfOperationCtx) addArtifactGCFinalizer() {
+		if !woc.hasArtifactGCFinalizer() {
+				woc.wf.SetFinalizers(append(woc.wf.Finalizers, common.FinalizerKeyArtifactGc))
+				woc.updated = true
+		}
+}
+
+func (woc *wfOperationCtx) deleteArtifactGCFinalizer() {
+		removed := false
+
+		var finalizers []string
+
+		for _, f := range woc.wf.GetFinalizers() {
+				if f != common.FinalizerKeyArtifactGc {
+						finalizers = append(finalizers, f)
+				} else {
+						removed = true
+				}
+		}
+
+		if removed {
+				woc.log.Infof("Removed the artifact finalizer")
+				woc.wf.SetFinalizers(finalizers)
+				woc.updated = true
+		}
+}
+
+func (woc *wfOperationCtx) getGarbageCollectibleArtifacts() wfv1.Artifacts {
+		var artifacts wfv1.Artifacts
+
+		for _, node := range woc.wf.Status.Nodes {
+				if node.Outputs != nil {
+						for _, artifact := range node.Outputs.Artifacts {
+								hasGCStrategy := artifact.ArtifactGC != nil && artifact.ArtifactGC.Strategy != wfv1.ArtifactGCNever
+								isGCEnabled := artifact.ArtifactLocation.S3 != nil || artifact.ArtifactLocation.GCS != nil
+
+								if hasGCStrategy && isGCEnabled {
+										artifacts = append(artifacts, artifact)
+								}
+						}
+				}
+		}
+
+		return artifacts
+}
+
+func (woc *wfOperationCtx) needsArtifactGC() bool {
+		return len(woc.getGarbageCollectibleArtifacts()) > 0
 }
