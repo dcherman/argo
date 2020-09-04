@@ -124,9 +124,9 @@ jobs:
           ARGOPATH: /home/runner/go/src/github.com/argoproj/argo
         run: |
           git fetch --tags
-          mkdir -p "$ARGOPATH"
-          ln -s "$GITHUB_WORKSPACE/argo" "$ARGOPATH"
-          cd "$ARGOPATH"
+          
+          mkdir -p /home/runner/go/src/github.com/argoproj
+          ln -s "$GITHUB_WORKSPACE/argo" /home/runner/go/src/github.com/argoproj/argo
 
           make codegen STATIC_FILES=false
       - name: Make lint
