@@ -721,6 +721,10 @@ type VolumeGC struct {
 
 // GetStrategy returns the VolumeGCStrategy to use for the workflow
 func (vgc VolumeGC) GetStrategy() VolumeGCStrategy {
+	if vgc.Strategy == "" {
+		return VolumeGCOnSuccess
+	}
+
 	return vgc.Strategy
 }
 
