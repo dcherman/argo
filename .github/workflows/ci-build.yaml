@@ -125,7 +125,7 @@ jobs:
         run: |
           git fetch --tags
           mkdir -p "$ARGOPATH"
-          ln "$GITHUB_WORKSPACE/argo" "$ARGOPATH" -s
+          ln -s "$GITHUB_WORKSPACE/argo" "$ARGOPATH"
           cd "$ARGOPATH"
 
           make codegen STATIC_FILES=false
