@@ -121,10 +121,9 @@ jobs:
       - name: Make codegen
         env:
           GOPATH: /home/runner/go
-          ARGOPATH: /home/runner/go/src/github.com/argoproj/argo
         run: |
           git fetch --tags
-          
+
           mkdir -p /home/runner/go/src/github.com/argoproj
           ln -s "$GITHUB_WORKSPACE/argo" /home/runner/go/src/github.com/argoproj/argo
 
