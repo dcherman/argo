@@ -4096,6 +4096,16 @@
         }
       }
     },
+    "io.argoproj.workflow.v1alpha1.VolumeGC": {
+      "description": "VolumeGC describes how to delete volumes from completed Workflows",
+      "type": "object",
+      "properties": {
+        "strategy": {
+          "description": "Strategy is the strategy to use. One of \"OnWorkflowCompletion\", \"OnWorkflowSuccess\"",
+          "type": "string"
+        }
+      }
+    },
     "io.argoproj.workflow.v1alpha1.Workflow": {
       "description": "Workflow is the definition of a workflow resource",
       "type": "object",
@@ -4463,6 +4473,10 @@
           },
           "x-kubernetes-patch-merge-key": "name",
           "x-kubernetes-patch-strategy": "merge"
+        },
+        "volumeGC": {
+          "description": "VolumeGC describes the strategy to use when to deleting volumes from completed workflows",
+          "$ref": "#/definitions/io.argoproj.workflow.v1alpha1.VolumeGC"
         },
         "volumes": {
           "description": "Volumes is a list of volumes that can be mounted by containers in a io.argoproj.workflow.v1alpha1.",
@@ -4914,6 +4928,10 @@
           },
           "x-kubernetes-patch-merge-key": "name",
           "x-kubernetes-patch-strategy": "merge"
+        },
+        "volumeGC": {
+          "description": "VolumeGC describes the strategy to use when to deleting volumes from completed workflows",
+          "$ref": "#/definitions/io.argoproj.workflow.v1alpha1.VolumeGC"
         },
         "volumes": {
           "description": "Volumes is a list of volumes that can be mounted by containers in a io.argoproj.workflow.v1alpha1.",
