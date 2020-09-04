@@ -121,13 +121,13 @@ jobs:
       - name: Make codegen
         env:
           GOPATH: /home/runner/go
-          ARGOPATH: /home/runner/go/src/github.com/argoproj/argo
+          ARGOPROJPATH: /home/runner/go/src/github.com/argoproj
         run: |
           git fetch --tags
-          mkdir -p "$ARGOPATH"
-          cp -r "$GITHUB_WORKSPACE" "$ARGOPATH"
-          ls "$ARGOPATH"
-          cd "$ARGOPATH"
+          mkdir -p "$ARGOPROJPATH"
+          cp -r "$GITHUB_WORKSPACE" "$ARGOPROJPATH"
+          cd "$ARGOPROJPATH/argo"
+          
           make codegen STATIC_FILES=false
       - name: Make lint
         env:
