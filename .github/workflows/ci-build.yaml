@@ -126,6 +126,7 @@ jobs:
           git fetch --tags
           mkdir -p "$ARGOPATH"
           cp -r "$GITHUB_WORKSPACE" "$ARGOPATH"
+          ls "$ARGOPATH"
           cd "$ARGOPATH"
           make codegen STATIC_FILES=false
       - name: Make lint
