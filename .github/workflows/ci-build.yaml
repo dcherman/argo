@@ -125,9 +125,9 @@ jobs:
         run: |
           git fetch --tags
           mkdir -p "$ARGOPROJPATH"
-          cp -r "$GITHUB_WORKSPACE" "$ARGOPROJPATH"
+          ln "$GITHUB_WORKSPACE/argo" "$ARGOPROJPATH/argo" -s
           cd "$ARGOPROJPATH/argo"
-          
+
           make codegen STATIC_FILES=false
       - name: Make lint
         env:
